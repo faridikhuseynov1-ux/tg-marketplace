@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: marketplace_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: marketplace_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    build: 
+      context: ./python_backend
+    container_name: marketplace_api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/marketplace_db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    command: >
+      sh -c "python seed.py && uvicorn api.main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+  bot:
+    build: 
+      context: ./python_backend
+    container_name: marketplace_bot
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/marketplace_db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - CEO_TELEGRAM_ID=${CEO_TELEGRAM_ID}
+      - WEB_APP_URL=${WEB_APP_URL}
+    depends_on:
+      - db
+    command: python bot/main.py
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
