@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: var(--tg-theme-bg-color, #0f172a);
+  color: var(--tg-theme-text-color, #f8fafc);
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar tweaks */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
