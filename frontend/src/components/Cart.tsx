@@ -10,25 +10,32 @@ export function Cart() {
         const orderData = { action: 'checkout', itemId: 1, price: 29.99, source: 'MiniApp' };
         
         try {
-          // Попытка использовать нативный sendData() для ReplyKeyboard
           WebApp.sendData(JSON.stringify(orderData));
         } catch (e) {
-          // Фолбэк для Инлайн-кнопок: Стучимся на новый Python FastAPI сервер
           try {
-            const initData = WebApp.initData; // Важнейшая секьюрная строка для FastAPI
+            const initData = WebApp.initData;
+            // Устранение хардкода: теперь берем путь к серверу из ENV (задача Эльнура выполнена)
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
             
-            // ПРИМЕЧАНИЕ: URL мокан для примера работы с Python
-            await fetch('https://api.example.com/api/v1/checkout', {
+            const response = await fetch(`${API_URL}/checkout`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `tma ${initData}` // Передача токена в FastAPI
+                'Authorization': `tma ${initData}`
               },
               body: JSON.stringify(orderData)
             });
-            WebApp.showAlert('Сигнал успешно отправлен на Python FastAPI! Проверьте бота.');
+            const data = await response.json();
+            
+            if (response.ok) {
+              WebApp.showAlert(data.message);
+              WebApp.HapticFeedback.notificationOccurred('success');
+            } else {
+              WebApp.showAlert(`Ошибка оплаты: ${data.detail || 'Отклонено'}`);
+              WebApp.HapticFeedback.notificationOccurred('error');
+            }
           } catch (apiError) {
-            WebApp.showAlert('REST-API запрос к Python выполнен (локальная заглушка).');
+            WebApp.showAlert('Ошибка сети при попытке оплатить заказ.');
           }
         }
       }
@@ -46,7 +53,7 @@ export function Cart() {
           </div>
           <div className="flex-1">
             <h4 className="font-medium text-sm text-slate-200">Telegram Premium (1 Year)</h4>
-            <span className="text-xs text-slate-400 mt-1 block">Продавец: @durov_fan</span>
+            <span className="text-xs text-slate-400 mt-1 block">Продавец: @system_seller</span>
             <div className="font-bold text-blue-400 mt-1">$29.99</div>
           </div>
         </motion.div>
