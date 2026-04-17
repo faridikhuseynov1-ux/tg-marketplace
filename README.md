@@ -1,72 +1,95 @@
-# 🛒 Telegram P2P Marketplace (TMA)
+# 🛒 Telegram P2P Marketplace (Python Stack)
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-Production_Ready-success.svg)
-![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat&logo=nestjs&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
+![Aiogram](https://img.shields.io/badge/Aiogram-3.x-2C3E50?style=flat)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-Async-D71F00?style=flat)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)
-![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=flat&logo=framer&logoColor=white)
 
-Это мощный P2P-маркетплейс, интегрированный прямо в Telegram с использованием технологии **Telegram Web Apps (TMA)**. Платформа позволяет пользователям выступать в роли продавцов и покупателей, имеет систему внутреннего баланса и поддерживает проведение безопасных сделок (Escrow).
-
----
-
-## 🤖 Интеграция Телеграм и WebApp SDK
-
-Проект представляет собой бесшовную экосистему из инлайн-бота и Web App:
-
-- **Команда `/start`:** Бот приветствует пользователя по имени и выдаёт как Inline-кнопку, так и классическую Keyboard-кнопку для входа в Mini App.
-- **Инлайн Покупки:** Введено меню каталога, позволяющее интуитивно совершать сделки прямо внутри мессенджера через Callback-кнопки (без открытия Mini App).
-- **Связь Frontend -> Backend `WebApp.sendData`:** При оформлении заказа в корзине, WebView-приложение динамически получает ник и инфу о юзере через `initDataUnsafe`. При клике «Подтвердить покупку» WebApp автоматически сворачивается и отправляет payload с данными заказа боту через нативный `sendData`. В свою очередь, NestJS бэкенд мгновенно перехватывает этот `web_app_data` Event и самостоятельно инициирует транзакцию Escrow, завершая цепочку!
+P2P-маркетплейс нового поколения, встроенный в Telegram с помощью **Web Apps (TMA)**. 
+Пилотный проект полностью переведен на сверхбыстрый и мощный асинхронный стек Python, гарантирующий максимальную производительность при работе с Telegram API.
 
 ---
 
 ## 🏗 Архитектура
 
-Архитектура платформы построена на принципах микромодульности и разделения ответственностей в рамках монорепы:
+Наш монорепозиторий состоит из двух неразрывных слоев:
 
-1. **Telegram Bot API & Backend (NestJS)**
-   - Базируется в подпапке `backend/`. Обрабатывает REST запросы от Web App и управляет Telegram-ботом.
-   - Внедрены строгие `DTO` с `class-validator`. Реализован кастомный `BigIntInterceptor` для безопасной конвертации PostgreSQL `BigInt`.
+1. **Python Бэкенд (`/python_backend`)**
+   - **Бот (aiogram 3.x):** Аппарат лонг-поллинга, обрабатывающий все команды и коллбеки напрямую в мессенджере.
+   - **REST API (FastAPI):** Скоростной сервер для безопасной обработки финансовых данных (`initData`) от React-фронтенда.
+   - **База Данных (PostgreSQL + SQLAlchemy 2.0):** Асинхронные модели (`User`, `Item`, `Ad`, `Transaction`) с высокоточной арифметикой для балансов (`Numeric`).
 
-2. **База данных (PostgreSQL + Prisma)**
-   - Модели: `User`, `Item`, `Category`, `Transaction`, `EscrowDeal`.
-   - Использование типа `Decimal` для финансовой точности транзакций.
+2. **React Фронтенд (`/frontend`)**
+   - Интерактивный WebApp интерфейс (Vite + React + Tailwind + Framer Motion).
+   - Стучится напрямую в зашифрованные эндпоинты FastAPI с fallback'ами к нативным методам `WebApp.sendData()`.
 
-3. **Фронтенд - Mini App (React + Vite)**
-   - Базируется в подпапке `frontend/`. 
-   - Навигация и карточки товаров анимированы через **Framer Motion**.
-   - UI автоматически адаптируется под темную или светлую тему Telegram.
+---
+
+## 🤖 Интерфейс Бота
+
+В версии 2.0 бот использует навигационную **Reply-клавиатуру**, которая всегда закреплена внизу чата для интуитивного доступа:
+
+*   `[📱 Магазин]` — Точка входа. При нажатии бот присылает сообщение-знакомство с WebApp-кнопкой (Inline), открывающей наш React Mini App.
+*   `[💰 Баланс]` — Моментальный запрос текущего счета пользователя прямо в чате без загрузки WebView.
+*   `[👤 Профиль]` — Статистика сделок юзера (куплено товаров/продано/рейтинг).
+*   `[ℹ️ Помощь]` — Встроенный FAQ по Escrow-безопасности и контакт службы поддержки (Support).
+
+*Скрытая Админ-панель:* Доступна только для CEO проекта по статичному Telegram-ID через команду `/admin`. Включает модули глобальной рассылки (Broadcast) и защищенной аналитики платформы.
 
 ---
 
 ## 🚀 Руководство по запуску
 
-### 1. Подготовка Базы Данных (Prisma)
-1. Создайте в корне `.env` с ключом `DATABASE_URL`.
-2. Выполните генерацию схемы:
-```bash
-npm install
-npx prisma db push
-npx prisma generate
-```
+Для развертывания проекта локально следуйте этим простым шагам:
 
-### 2. Запуск Backend
-Создайте `.env` в папке `/backend` и добавьте `TELEGRAM_BOT_TOKEN`.
-```bash
-cd backend
-npm install
-npm run start:dev
-```
+### Шаг 1: Настройка Python Backend
 
-### 3. Запуск Frontend
+1. **Создайте и активируйте виртуальное окружение (venv)** внутри подпапки бэкенда:
+   ```bash
+   cd python_backend
+   python -m venv venv
+   
+   # Способ активации на Windows:
+   venv\Scripts\activate
+   
+   # Способ активации на MacOS/Linux:
+   source venv/bin/activate
+   ```
+
+2. **Установите все Python зависимости:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Настройте переменные окружения:**
+   Внутри папки `python_backend` создайте файл `.env` и добавьте базовые ключи:
+   ```env
+   TELEGRAM_BOT_TOKEN="ВАШ_ТОКЕН_БОТА_ОТ_BOTFATHER"
+   CEO_TELEGRAM_ID="ВАШ_TELEGRAM_ID"
+   DATABASE_URL="postgresql+asyncpg://user:password@localhost/marketplace_db"
+   WEB_APP_URL="https://ваша-ссылка-на-react"
+   ```
+
+4. **Запустите aiogram бота:**
+   ```bash
+   python main.py
+   ```
+   *P.S. (Инструкция по запуску Uvicorn/FastAPI-сервера будет в отдельном сервисном файле).*
+
+### Шаг 2: Настройка Frontend (React TMA)
+
+Для работы визуального интерфейса откройте второй терминал:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
+Всё готово! Бот мгновенно реагирует на команды в Telegram, а React отрисовывает роскошный P2P дизайн! 🚀
+
 ---
-## 🛡 Безопасность
-Проект успешно прошел аудит QA-команды. Реализованы глобальные пайпы валидации `ValidationPipe`, убран хардкод секретов, а БД защищена от коллизий сериализации.
+## 🛡 QA Аудит прошел успешно
+Система проверена. Уязвимости инлайн-хэндлеров админки исправлены (глобальные фильтры `aiogram`). Валидация `WebApp.initData` через HMAC SHA-256 обеспечивает банковский уровень безопасности.

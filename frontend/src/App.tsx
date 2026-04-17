@@ -7,6 +7,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'market' | 'cart'>('market');
+  
+  // Достаем данные пользователя Telegram напрямую из API
+  const tgUser = WebApp.initDataUnsafe?.user;
 
   useEffect(() => {
     WebApp.ready();
@@ -20,8 +23,13 @@ function App() {
         <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
           TG Market
         </h1>
-        <div className="text-sm font-medium px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
-          Баланс: $150.00
+        <div className="flex flex-col items-end">
+          <span className="text-xs text-blue-400 font-bold mb-1">
+            {tgUser ? `@${tgUser.username || tgUser.first_name}` : '👤 Гость'}
+          </span>
+          <div className="text-[10px] font-medium px-2 py-0.5 bg-slate-800 rounded-full border border-slate-700">
+            Баланс: $150.00
+          </div>
         </div>
       </header>
 
@@ -48,7 +56,7 @@ function App() {
             className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'market' ? 'text-blue-400' : 'text-slate-400'}`}
           >
             <Store size={24} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Маркет</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider">📱 Магазин</span>
           </button>
           
           <div className="w-12 h-12 bg-blue-500 rounded-full flex justify-center items-center -mt-6 shadow-lg shadow-blue-500/30 text-white cursor-pointer hover:scale-105 transition-transform">
@@ -60,7 +68,7 @@ function App() {
             className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'cart' ? 'text-blue-400' : 'text-slate-400'}`}
           >
             <ShoppingBag size={24} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Корзина</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider">🛍 Корзина</span>
           </button>
         </div>
       </nav>

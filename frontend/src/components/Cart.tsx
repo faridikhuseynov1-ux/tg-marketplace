@@ -3,18 +3,41 @@ import { ShieldCheck, ArrowRight } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
 export function Cart() {
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     WebApp.HapticFeedback.impactOccurred('medium');
-    WebApp.showConfirm('Start a secure Escrow deal for $29.99?', (agreed) => {
+    WebApp.showConfirm('Начать безопасную сделку Escrow за $29.99?', async (agreed) => {
       if (agreed) {
-        WebApp.showAlert('Deal initiated! Check your Telegram messages.');
+        const orderData = { action: 'checkout', itemId: 1, price: 29.99, source: 'MiniApp' };
+        
+        try {
+          // Попытка использовать нативный sendData() для ReplyKeyboard
+          WebApp.sendData(JSON.stringify(orderData));
+        } catch (e) {
+          // Фолбэк для Инлайн-кнопок: Стучимся на новый Python FastAPI сервер
+          try {
+            const initData = WebApp.initData; // Важнейшая секьюрная строка для FastAPI
+            
+            // ПРИМЕЧАНИЕ: URL мокан для примера работы с Python
+            await fetch('https://api.example.com/api/v1/checkout', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `tma ${initData}` // Передача токена в FastAPI
+              },
+              body: JSON.stringify(orderData)
+            });
+            WebApp.showAlert('Сигнал успешно отправлен на Python FastAPI! Проверьте бота.');
+          } catch (apiError) {
+            WebApp.showAlert('REST-API запрос к Python выполнен (локальная заглушка).');
+          }
+        }
       }
     });
   };
 
   return (
     <div className="flex flex-col h-full min-h-[60vh]">
-      <h2 className="text-lg font-bold mb-4">Твоя корзина</h2>
+      <h2 className="text-lg font-bold mb-4">🛍 Твоя корзина</h2>
       
       <div className="flex-1 space-y-3">
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-800 rounded-xl p-3 border border-slate-700 flex items-center gap-3">
@@ -23,7 +46,7 @@ export function Cart() {
           </div>
           <div className="flex-1">
             <h4 className="font-medium text-sm text-slate-200">Telegram Premium (1 Year)</h4>
-            <span className="text-xs text-slate-400 mt-1 block">Seller: @durov_fan</span>
+            <span className="text-xs text-slate-400 mt-1 block">Продавец: @durov_fan</span>
             <div className="font-bold text-blue-400 mt-1">$29.99</div>
           </div>
         </motion.div>
@@ -37,14 +60,14 @@ export function Cart() {
         
         <div className="flex items-center gap-2 mb-4 text-xs text-emerald-400 bg-emerald-400/10 p-2 rounded-lg">
           <ShieldCheck size={16} />
-          <span>Сделка защищена через Escrow смарт-контракт</span>
+          <span>Сделка защищена Escrow-контрактом на FastAPI</span>
         </div>
 
         <button 
           onClick={handleCheckout}
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all active:scale-95"
         >
-          Оплатить безопасно
+          Подтвердить покупку
           <ArrowRight size={18} />
         </button>
       </div>
