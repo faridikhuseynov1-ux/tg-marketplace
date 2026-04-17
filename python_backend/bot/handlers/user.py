@@ -18,21 +18,51 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
+# === СЕНЬОР-ФИЧА: ОБРАБОТКА DEEP-LINKING РЕФЕРАЛОВ ===
 @user_router.message(CommandStart())
 async def cmd_start(message: Message):
+    args = message.text.split(" ")
+    referrer_id = None
+    
+    # Парсим ссылку вида t.me/bot?start=ref_12345
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            referrer_id = int(args[1].split("_")[1])
+            if referrer_id == message.from_user.id:
+                referrer_id = None # Нельзя пригласить самого себя
+        except ValueError:
+            pass
+
     async with AsyncSessionLocal() as db:
         res = await db.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = res.scalars().first()
+        
         if not user:
-            # Senior Фича: Каждому новому юзеру выдаем стартовые $100.00 для тестов системы покупок!
-            new_user = User(telegram_id=message.from_user.id, username=message.from_user.username, balance=100.00)
+            # Создаем нового пользователя с указанием того, кто его пригласил
+            new_user = User(
+                telegram_id=message.from_user.id, 
+                username=message.from_user.username, 
+                balance=100.00,
+                referred_by=referrer_id
+            )
             db.add(new_user)
             await db.commit()
             
+            # Начисляем бонус приглашающему (Реферальная программа!)
+            if referrer_id:
+                ref_res = await db.execute(select(User).where(User.telegram_id == referrer_id))
+                referrer = ref_res.scalars().first()
+                if referrer:
+                    referrer.balance = float(referrer.balance) + 5.00
+                    await db.commit()
+                    
+                    # Отправляем уведомление приглашающему при возможности (опускаем для упрощения)
+            
             await message.answer(
                 f"👋 Привет, <b>{message.from_user.first_name}</b>!\n\n"
-                f"🎉 В честь регистрации мы начислили вам бонус: <b>$100.00</b>!\n"
-                f"Откройте [📱 Магазин] и совершите свою первую безопасную покупку.",
+                f"🎉 В честь регистрации мы начислили вам <b>$100.00</b>!\n"
+                f"{('🎁 Вы приглашены пользователем! ' if referrer_id else '')}"
+                f"Откройте [📱 Магазин] и совершите безопасную покупку.",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
             )
@@ -46,11 +76,11 @@ async def cmd_start(message: Message):
 
 @user_router.message(F.text == "📱 Магазин")
 async def process_shop_button(message: Message):
-    web_app_url = os.getenv("WEB_APP_URL", "https://t.me/durov")
+    web_app_url = os.getenv("WEB_APP_URL", "https://t.me/duров")
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Открыть маркетплейс", web_app=WebAppInfo(url=web_app_url))]
     ])
-    await message.answer("Каталог защищенных покупок: 🛒", reply_markup=markup)
+    await message.answer("Каталог с оплатой Telegram Stars: ⭐️🛒", reply_markup=markup)
 
 @user_router.message(F.text == "💰 Баланс")
 async def process_balance_button(message: Message):
@@ -61,30 +91,38 @@ async def process_balance_button(message: Message):
     
     await message.answer(f"💰 Доступно: <b>${balance}</b>", parse_mode="HTML")
 
-# === УЛУЧШЕНИЕ SENIOR УРОВНЯ: ДЕТАЛЬНЫЙ ПРОФИЛЬ С ТРАНЗАКЦИЯМИ ===
+# === УЛУЧШЕНИЕ: ВЫВОД РЕФЕРАЛЬНОЙ ССЫЛКИ В ПРОФИЛЕ ===
 @user_router.message(F.text == "👤 Профиль")
 async def process_profile_button(message: Message):
     async with AsyncSessionLocal() as db:
         res = await db.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = res.scalars().first()
-        
         if not user:
-            return await message.answer("Ваш профиль не найден. Введите команду /start.")
+            return await message.answer("Профиль не найден. Введите /start.")
             
-        # Запрашиваем из базы количество транзакций юзера
         tx_res = await db.execute(select(Transaction).where(Transaction.user_id == user.id))
         tx_count = len(tx_res.scalars().all())
+        
+        # Подсчет приглашенных друзей
+        ref_res = await db.execute(select(User).where(User.referred_by == user.telegram_id))
+        ref_count = len(ref_res.scalars().all())
+
+    bot_info = await message.bot.me()
+    ref_link = f"https://t.me/{bot_info.username}?start=ref_{user.telegram_id}"
 
     text = (
         f"👤 <b>Ваш Профиль</b>\n\n"
         f"💳 <b>ID:</b> <code>{user.telegram_id}</code>\n"
-        f"👑 <b>Роль:</b> {'Администратор' if user.is_admin else 'Покупатель'}\n"
+        f"👑 <b>Роль:</b> {'Администратор' if user.is_admin else 'Пользователь'}\n"
         f"💵 <b>Счёт:</b> ${user.balance}\n"
-        f"🧾 <b>Личных транзакций (Escrow):</b> {tx_count}\n\n"
-        f"<i>Все ваши сделки застрахованы умным Escrow-контрактом. Никто не имеет доступа к вашим средствам.</i> 🔒"
+        f"🧾 <b>Транзакций (Escrow):</b> {tx_count}\n"
+        f"👥 <b>Приглашено друзей:</b> {ref_count}\n\n"
+        f"🔗 <b>Твоя реф. ссылка ($5 за друга!):</b>\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"<i>Все ваши сделки застрахованы умным Escrow-контрактом.</i> 🔒"
     )
     await message.answer(text, parse_mode="HTML")
 
 @user_router.message(F.text == "ℹ️ Помощь")
 async def process_help_button(message: Message):
-    await message.answer("ℹ️ <b>Поддержка 24/7</b>\nНаш маркетплейс использует технологию безопасных P2P-сделок (Escrow). Свяжитесь с администрацией.", parse_mode="HTML")
+    await message.answer("ℹ️ <b>Поддержка 24/7</b>\nНаш маркетплейс использует Escrow-сделки. Зовите друзей и получайте доллары по реферальной программе!", parse_mode="HTML")

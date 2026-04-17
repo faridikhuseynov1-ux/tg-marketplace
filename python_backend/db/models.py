@@ -22,6 +22,7 @@ class User(Base):
     username = Column(String, nullable=True)
     balance = Column(Numeric(10, 2), default=0.00, nullable=False)
     is_admin = Column(Boolean, default=False)
+    referred_by = Column(BigInteger, nullable=True) # ID юзера, который пригласил
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     items = relationship("Item", back_populates="seller")
